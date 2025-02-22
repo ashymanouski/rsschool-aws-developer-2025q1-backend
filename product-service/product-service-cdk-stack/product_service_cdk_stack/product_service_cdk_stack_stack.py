@@ -43,8 +43,7 @@ class ProductServiceCdkStackStack(Stack):
             description="Product Service API Gateway",
             default_cors_preflight_options=apigw.CorsOptions(
                 allow_origins=apigw.Cors.ALL_ORIGINS,
-#                allow_methods=apigw.Cors.ALL_METHODS
-                allow_methods=['GET', 'OPTIONS'] #https://github.com/aws-samples/aws-cdk-examples/blob/main/python/api-cors-lambda/app.py
+                allow_methods=['GET', 'OPTIONS']
             )
         )
         apply_tags(apigateway)
