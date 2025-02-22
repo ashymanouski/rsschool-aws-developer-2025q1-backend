@@ -6,7 +6,7 @@ from src.product_by_id import handler, PRODUCTS
 def test_get_existing_product():
     event = {
         'pathParameters': {
-            'id': '1'
+            'productId': '1'
         }
     }
     context = {}
@@ -21,7 +21,7 @@ def test_get_existing_product():
 def test_product_not_found():
     event = {
         'pathParameters': {
-            'id': 'non-existent'
+            'productId': 'non-existent'
         }
     }
     context = {}
