@@ -1,17 +1,10 @@
 import json
+import os
+import boto3
 
-PRODUCTS = [
-    {"id": "1", "title": "Bose QuietComfort Earbuds II", "description": "Wireless Noise Cancelling Earbuds", "price": 229},
-    {"id": "2", "title": "Apple AirPods Pro", "description": "Active Noise Cancellation, Transparency Mode", "price": 249},
-    {"id": "3", "title": "Sony WH-1000XM4", "description": "Wireless Noise Cancelling Over-Ear Headphones", "price": 349},
-    {"id": "4", "title": "Samsung Galaxy Buds Pro", "description": "Intelligent ANC, 360 Audio", "price": 199},
-    {"id": "5", "title": "Jabra Elite 85t", "description": "Advanced ANC, Wireless Charging", "price": 179},
-    {"id": "6", "title": "Beats Fit Pro", "description": "Secure Fit, Active Noise Cancelling", "price": 199},
-    {"id": "7", "title": "Sennheiser Momentum True Wireless 3", "description": "High-Quality Sound, ANC", "price": 299},
-    {"id": "8", "title": "Anker Soundcore Liberty 3 Pro", "description": "Personalized Sound, LDAC Codec", "price": 169},
-    {"id": "9", "title": "Google Pixel Buds Pro", "description": "Google Assistant Integration, ANC", "price": 199},
-    {"id": "10", "title": "Nothing Ear (2)", "description": "Transparent Design, Hybrid ANC", "price": 149}
-]
+dynamodb = boto3.resource('dynamodb')
+products_table = dynamodb.Table(os.environ['TABLE_NAME_PRODUCTS'])
+stocks_table = dynamodb.Table(os.environ['TABLE_NAME_STOCKS'])
 
 def handler(event, context):
     try:
@@ -26,10 +19,10 @@ def handler(event, context):
                 }
             }
         
-        product = next(
-            (product for product in PRODUCTS if product['id'] == product_id),
-            None
+        product_response = products_table.get_item(
+            Key={'id': product_id}
         )
+        product = product_response.get('Item')
         
         if not product:
             return {
@@ -43,13 +36,26 @@ def handler(event, context):
                 })
             }
             
+        stock_response = stocks_table.get_item(
+            Key={'product_id': product_id}
+        )
+        stock = stock_response.get('Item', {'count': '0'})
+        
+        joined_product = {
+            'id': product['id'],
+            'title': product['title'],
+            'description': product['description'],
+            'price': int(product['price']),
+            'count': int(stock['count'])
+        }
+            
         return {
             'statusCode': 200,
             'headers': {
                 "Access-Control-Allow-Origin": "*",
                 "Content-Type": "application/json"
             },
-            'body': json.dumps(product)
+            'body': json.dumps(joined_product)
         }
     except Exception as e:
         return {

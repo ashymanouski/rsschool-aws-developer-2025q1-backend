@@ -2,6 +2,7 @@ from aws_cdk import (
     Stack,
     aws_lambda as _lambda,
     aws_apigateway as apigw,
+    aws_iam as iam,
     Tags
 )
 from constructs import Construct
@@ -25,17 +26,51 @@ class ProductServiceCdkStackStack(Stack):
             self, 'GetProductsList',
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler='products_list.handler',
-            code=_lambda.Code.from_asset('../src')
+            code=_lambda.Code.from_asset('../src'),
+            environment={
+                'TABLE_NAME_PRODUCTS': 'products',
+                'TABLE_NAME_STOCKS': 'stocks'
+            }            
         )
         apply_tags(get_products_list)
+
+        get_products_list.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    'dynamodb:Scan'
+                ],
+                resources=[
+                    f'arn:aws:dynamodb:{self.region}:{self.account}:table/products',
+                    f'arn:aws:dynamodb:{self.region}:{self.account}:table/stocks'
+                ]
+            )
+        )
 
         get_product_by_id = _lambda.Function(
             self, 'GetProductById',
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler='product_by_id.handler',
-            code=_lambda.Code.from_asset('../src')
+            code=_lambda.Code.from_asset('../src'),
+            environment={
+                'TABLE_NAME_PRODUCTS': 'products',
+                'TABLE_NAME_STOCKS': 'stocks'
+            } 
         )
         apply_tags(get_product_by_id)
+
+        get_product_by_id.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    'dynamodb:GetItem'
+                ],
+                resources=[
+                    f'arn:aws:dynamodb:{self.region}:{self.account}:table/products',
+                    f'arn:aws:dynamodb:{self.region}:{self.account}:table/stocks'
+                ]
+            )
+        )
 
         apigateway = apigw.RestApi(
             self, 'ProductServiceAPI',
@@ -47,7 +82,6 @@ class ProductServiceCdkStackStack(Stack):
             )
         )
         apply_tags(apigateway)
-
 
         products = apigateway.root.add_resource('products')
         products.add_method('GET', apigw.LambdaIntegration(get_products_list))
