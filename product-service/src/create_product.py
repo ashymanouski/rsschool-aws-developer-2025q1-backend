@@ -2,7 +2,10 @@ import json
 import os
 import boto3
 import uuid
-from datetime import datetime
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource('dynamodb')
 products_table = dynamodb.Table(os.environ['TABLE_NAME_PRODUCTS'])
@@ -37,6 +40,9 @@ def validate_product(body):
     return errors
 
 def handler(event, context):
+    logger.info('Incoming event: %s', json.dumps(event))
+    logger.info('Context: RequestId: %s', context.aws_request_id)
+    
     try:
         if not event.get('body'):
             return {
@@ -85,7 +91,6 @@ def handler(event, context):
             **product,
             'count': stock['count']
         }
-            
         return {
             'statusCode': 201,
             'headers': {

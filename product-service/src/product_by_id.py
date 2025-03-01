@@ -1,12 +1,19 @@
 import json
 import os
 import boto3
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 dynamodb = boto3.resource('dynamodb')
 products_table = dynamodb.Table(os.environ['TABLE_NAME_PRODUCTS'])
 stocks_table = dynamodb.Table(os.environ['TABLE_NAME_STOCKS'])
 
 def handler(event, context):
+    logger.info('Incoming event: %s', json.dumps(event))
+    logger.info('Context: RequestId: %s', context.aws_request_id)
+    
     try:
         product_id = event['pathParameters']['productId']
         if not product_id:
