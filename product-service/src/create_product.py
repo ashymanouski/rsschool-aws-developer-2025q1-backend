@@ -3,6 +3,7 @@ import os
 import boto3
 import uuid
 import logging
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -84,8 +85,39 @@ def handler(event, context):
             'count': int(body['count'])
         }
         
-        products_table.put_item(Item=product)
-        stocks_table.put_item(Item=stock)
+        transaction_items = [
+            {
+                'Put': {
+                    'TableName': os.environ['TABLE_NAME_PRODUCTS'],
+                    'Item': product,
+                    'ConditionExpression': 'attribute_not_exists(id)'
+                }
+            },
+            {
+                'Put': {
+                    'TableName': os.environ['TABLE_NAME_STOCKS'],
+                    'Item': stock,
+                    'ConditionExpression': 'attribute_not_exists(product_id)'
+                }
+            }
+        ]
+        
+        try:
+            dynamodb.meta.client.transact_write_items(TransactItems=transaction_items)
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'TransactionCanceledException':
+                return {
+                    'statusCode': 500,
+                    'headers': {
+                        "Access-Control-Allow-Origin": "*",
+                        "Content-Type": "application/json"
+                    },
+                    'body': json.dumps({
+                        'message': 'Failed to create product and stock',
+                        'error': 'Transaction cancelled'
+                    })
+                }
+            raise e
         
         response_item = {
             **product,
