@@ -44,7 +44,7 @@ def handler(event, context):
             "statusCode": 200,
             "headers": {
                 "Access-Control-Allow-Origin": "*",
-                "Content-Type": "application/json"
+                 "Content-Type": "*/*"
             },
             "body": signed_url
         }

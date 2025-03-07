@@ -2,6 +2,8 @@ from aws_cdk import (
     Stack,
     aws_lambda as _lambda,
     aws_apigateway as apigw,
+    aws_s3 as s3,
+    aws_s3_notifications as s3n,
     aws_iam as iam,
     Duration,
     Tags
@@ -24,16 +26,12 @@ class ImportServiceCdkStackStack(Stack):
             for key, value in tags.items():
                 Tags.of(resource).add(key, value)
 
-        # import_bucket = s3.Bucket(
-        #     self, "ImportBucket",
-        #     cors=[s3.CorsRule(
-        #         allowed_methods=[s3.HttpMethods.PUT],
-        #         allowed_origins=["*"],
-        #         allowed_headers=["*"]
-        #     )]
-        # )
-        # apply_tags(import_bucket)
-
+        import_bucket = s3.Bucket.from_bucket_name(
+            self, 'ImportBucket',
+            bucket_name=SETTINGS["IMPORT_BUCKET_NAME"]
+        )
+        
+#### Task 5.2
         import_products_file = _lambda.Function(
             self, "ImportProductsFile",
             runtime=_lambda.Runtime.PYTHON_3_9,
@@ -41,7 +39,7 @@ class ImportServiceCdkStackStack(Stack):
             code=_lambda.Code.from_asset("../src"),
             timeout=Duration.seconds(30),
             environment={
-                "BUCKET_NAME": SETTINGS["IMPORT_BUCKET_NAME"]
+                "BUCKET_NAME": import_bucket.bucket_name
             }
         )
         apply_tags(import_products_file)
@@ -53,7 +51,7 @@ class ImportServiceCdkStackStack(Stack):
                     's3:ListBucket'
                 ],
                 resources=[
-                    f'arn:aws:s3:::{SETTINGS["IMPORT_BUCKET_NAME"]}'
+                    f'arn:aws:s3:::{import_bucket.bucket_name}'
                 ]
             )
         )
@@ -67,7 +65,7 @@ class ImportServiceCdkStackStack(Stack):
                     's3:GetObjectAttributes'
                 ],
                 resources=[
-                    f'arn:aws:s3:::{SETTINGS["IMPORT_BUCKET_NAME"]}/*'
+                    f'arn:aws:s3:::{import_bucket.bucket_name}/*'
                 ]
             )
         )
@@ -91,5 +89,42 @@ class ImportServiceCdkStackStack(Stack):
             request_parameters={
                 "method.request.querystring.name": True
             }
+        )
+
+#### Task 5.3
+        smart_open_layer = _lambda.LayerVersion(
+            self, 'SmartOpenLayer',
+            code=_lambda.Code.from_asset('../layers/smart_open'),
+            compatible_runtimes=[_lambda.Runtime.PYTHON_3_9],
+            description='Smart Open Layer for CSV streaming'
+        )
+
+        import_file_parser = _lambda.Function(
+            self, "ImportFileParser",
+            runtime=_lambda.Runtime.PYTHON_3_9,
+            handler="import_file_parser.handler",
+            code=_lambda.Code.from_asset("../src"),
+            timeout=Duration.seconds(30),
+            layers=[smart_open_layer]
+        )
+        apply_tags(import_file_parser)
+
+        import_file_parser.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    's3:GetObject',
+                    's3:GetObjectAttributes'
+                ],
+                resources=[
+                    f'arn:aws:s3:::{import_bucket.bucket_name}/uploaded/*'
+                ]
+            )
+        )
+
+        import_bucket.add_event_notification(
+            s3.EventType.OBJECT_CREATED,
+            s3n.LambdaDestination(import_file_parser),
+            s3.NotificationKeyFilter(prefix="uploaded/")
         )
 
