@@ -30,8 +30,7 @@ class ImportServiceCdkStackStack(Stack):
             self, 'ImportBucket',
             bucket_name=SETTINGS["IMPORT_BUCKET_NAME"]
         )
-        
-#### Task 5.2
+
         import_products_file = _lambda.Function(
             self, "ImportProductsFile",
             runtime=_lambda.Runtime.PYTHON_3_9,
@@ -91,7 +90,7 @@ class ImportServiceCdkStackStack(Stack):
             }
         )
 
-#### Task 5.3
+
         smart_open_layer = _lambda.LayerVersion(
             self, 'SmartOpenLayer',
             code=_lambda.Code.from_asset('../layers/smart_open'),
@@ -114,10 +113,23 @@ class ImportServiceCdkStackStack(Stack):
                 effect=iam.Effect.ALLOW,
                 actions=[
                     's3:GetObject',
-                    's3:GetObjectAttributes'
+                    's3:GetObjectAttributes',
+                    's3:DeleteObject'
                 ],
                 resources=[
                     f'arn:aws:s3:::{import_bucket.bucket_name}/uploaded/*'
+                ]
+            )
+        )
+
+        import_file_parser.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    's3:PutObject'
+                ],
+                resources=[
+                    f'arn:aws:s3:::{import_bucket.bucket_name}/parsed/*'
                 ]
             )
         )

@@ -30,6 +30,26 @@ def handler(event, context):
                     logger.info('Parsed record: %s', json.dumps(row))
             
             logger.info('Successfully processed file: %s', key)
+
+
+            parsed_key = key.replace('uploaded/', 'parsed/')
+            
+            logger.info('Copying file to parsed folder: %s', parsed_key)
+            s3.copy_object(
+                CopySource={'Bucket': bucket, 'Key': key},
+                Bucket=bucket,
+                Key=parsed_key
+            )
+            
+            logger.info('Deleting file from uploaded folder: %s', key)
+            s3.delete_object(
+                Bucket=bucket,
+                Key=key
+            )
+            
+            logger.info('Successfully moved file from %s to %s', key, parsed_key)
+
+
             
         return {
             "statusCode": 200,
