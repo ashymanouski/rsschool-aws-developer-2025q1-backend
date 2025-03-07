@@ -1,8 +1,6 @@
 # Lambda Layer dependencies
 import-service/layers/smart_open/python/*
 !import-service/layers/smart_open/python/.gitkeep
-import-service/layers/csv_parser/python/*
-!import-service/layers/csv_parser/python/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

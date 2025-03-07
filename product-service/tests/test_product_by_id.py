@@ -1,4 +1,3 @@
-# tests/test_product_by_id.py
 import json
 import pytest
 from src.product_by_id import handler, PRODUCTS
