@@ -1,3 +1,7 @@
+# Lambda Layer dependencies
+import-service/layers/smart_open/python/*
+!import-service/layers/smart_open/python/.gitkeep
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
