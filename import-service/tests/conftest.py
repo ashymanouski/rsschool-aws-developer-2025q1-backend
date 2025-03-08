@@ -1,5 +1,4 @@
 import os
-import sys
 import pytest
 from moto import mock_s3
 import boto3
@@ -18,5 +17,15 @@ def s3_client():
     """Create mocked S3 client."""
     with mock_s3():
         s3 = boto3.client('s3', region_name='us-east-1')
-        s3.create_bucket(Bucket='XXXXXXXXXXX')
+        bucket_name = os.environ['BUCKET_NAME']
+        s3.create_bucket(Bucket=bucket_name)
         yield s3
+
+@pytest.fixture
+def valid_csv_content():
+    """Provide test CSV content"""
+    return (
+        "title,description,price,count\n"
+        "First Test Product,Test Description,10.99,5\n"
+        "Second Test Product,Another Description,20.00,10"
+    )
