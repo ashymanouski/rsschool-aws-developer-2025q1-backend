@@ -50,24 +50,7 @@ def handler(event, context):
                 Subject='New Product Created',
                 Message=f'New product "{product_data["title"]}" created'
             )
-            
-        return {
-            'statusCode': 200,
-            'headers': {
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({'message': 'Products processed successfully'})
-        }
 
     except Exception as e:
         logger.error(e)
-        return {
-            'statusCode': 500,
-            'headers': {
-                'Access-Control-Allow-Origin': '*'
-            },
-            'body': json.dumps({
-                'message': 'Error processing products',
-                'error': str(e)
-            })
-        }
+        raise
