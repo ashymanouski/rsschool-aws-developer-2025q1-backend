@@ -116,12 +116,41 @@ class ProductServiceCdkStackStack(Stack):
         )
         apply_tags(create_product_topic)
 
+        # Subscription for all products
         notification_emails = os.getenv('NOTIFICATION_EMAILS', '').split(',')
         for email in notification_emails:
             if email:
                 create_product_topic.add_subscription(
                     subscriptions.EmailSubscription(email)
-                )        
+                )
+
+        # Subscription for expensive products
+        notification_emails_expensive = os.getenv('NOTIFICATION_EMAILS_EXPENSIVE', '').split(',')
+        for email in notification_emails_expensive:
+            if email:
+                create_product_topic.add_subscription(
+                    subscriptions.EmailSubscription(email,
+                        filter_policy={
+                            "price": sns.SubscriptionFilter.numeric_filter(
+                                greater_than_or_equal_to=50
+                            )
+                        }
+                    )
+                )
+
+        # Subscription for cheap products
+        notification_emails_cheap = os.getenv('NOTIFICATION_EMAILS_CHEAP', '').split(',')
+        for email in notification_emails_cheap:
+            if email:
+                create_product_topic.add_subscription(
+                    subscriptions.EmailSubscription(email,
+                        filter_policy={
+                            "price": sns.SubscriptionFilter.numeric_filter(
+                                less_than=50
+                            )
+                        }
+                    )
+                )
 
         catalog_batch_process = _lambda.Function(
             self, 'CatalogBatchProcess',

@@ -44,11 +44,19 @@ def handler(event, context):
             )
 
             processed_products.append(product_data)
-            
+
+            message_attributes = {
+                'price': {
+                    'DataType': 'Number',
+                    'StringValue': str(product_data['price'])
+                }
+            }
+
             sns.publish(
                 TopicArn=sns_topic_arn,
                 Subject='New Product Created',
-                Message=f'New product "{product_data["title"]}" created'
+                Message=f'New product "{product_data["title"]}" created',
+                MessageAttributes=message_attributes
             )
 
     except Exception as e:
