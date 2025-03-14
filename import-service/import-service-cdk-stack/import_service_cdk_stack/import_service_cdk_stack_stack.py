@@ -5,6 +5,7 @@ from aws_cdk import (
     aws_s3 as s3,
     aws_s3_notifications as s3n,
     aws_iam as iam,
+    aws_sqs as sqs,
     Duration,
     Tags
 )
@@ -15,10 +16,10 @@ class ImportServiceCdkStackStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        self.template_options.description = "Task #5: Integration with S3"
+        self.template_options.description = "Task #6: AWS SQS & SNS"
 
         tags = {
-            "task": "5",
+            "task": "6",
             "owner": "ashymanouski"
         }
 
@@ -98,13 +99,21 @@ class ImportServiceCdkStackStack(Stack):
             description='Smart Open Layer for CSV streaming'
         )
 
+        catalog_items_queue = sqs.Queue.from_queue_arn(
+            self, "ImportToCatalogQueue",
+            f"arn:aws:sqs:{self.region}:{self.account}:catalogItemsQueue"
+        )
+
         import_file_parser = _lambda.Function(
             self, "ImportFileParser",
             runtime=_lambda.Runtime.PYTHON_3_9,
             handler="import_file_parser.handler",
             code=_lambda.Code.from_asset("../src"),
             timeout=Duration.seconds(30),
-            layers=[smart_open_layer]
+            layers=[smart_open_layer],
+            environment={
+                "SQS_QUEUE_URL": catalog_items_queue.queue_url
+            }
         )
         apply_tags(import_file_parser)
 
@@ -130,6 +139,18 @@ class ImportServiceCdkStackStack(Stack):
                 ],
                 resources=[
                     f'arn:aws:s3:::{import_bucket.bucket_name}/parsed/*'
+                ]
+            )
+        )
+
+        import_file_parser.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    'sqs:SendMessage'
+                ],
+                resources=[
+                    catalog_items_queue.queue_arn
                 ]
             )
         )
