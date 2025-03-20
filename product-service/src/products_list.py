@@ -32,7 +32,7 @@ def handler(event, context):
                 'id': product['id'],
                 'title': product['title'],
                 'description': product['description'],
-                'price': int(product['price']),
+                'price': float(product['price']),
                 'count': stock_by_product_id.get(product['id'], 0)
             }
             joined_products.append(joined_product)
