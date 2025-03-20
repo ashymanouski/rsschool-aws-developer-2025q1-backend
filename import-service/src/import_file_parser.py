@@ -9,6 +9,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 s3 = boto3.client('s3')
+sqs = boto3.client('sqs')
+sql_url = os.environ['SQS_QUEUE_URL']
 
 def handler(event, context):
     logger.info('Incoming event: %s', json.dumps(event))
@@ -27,10 +29,12 @@ def handler(event, context):
                 csv_reader = csv.DictReader(file_stream)
                 
                 for row in csv_reader:
-                    logger.info('Parsed record: %s', json.dumps(row))
+                    sqs.send_message(
+                        QueueUrl=sql_url,
+                        MessageBody=json.dumps(row)
+                    )
             
             logger.info('Successfully processed file: %s', key)
-
 
             parsed_key = key.replace('uploaded/', 'parsed/')
             
