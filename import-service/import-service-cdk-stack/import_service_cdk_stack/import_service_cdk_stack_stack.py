@@ -108,9 +108,8 @@ class ImportServiceCdkStackStack(Stack):
             description="Import Service API Gateway",
             default_cors_preflight_options=apigw.CorsOptions(
                 allow_origins=["*"],
-                allow_methods=["GET"],
-                allow_headers=["*", "Authorization"]
-                #allow_headers=["Authorization", "Content-Type"]
+                allow_methods=["GET", "OPTIONS"],
+                allow_headers=["Authorization", "Content-Type"]
             )
         )
         apply_tags(apigateway)

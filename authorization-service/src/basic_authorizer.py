@@ -1,6 +1,10 @@
 import os
 import base64
 import json
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 def generate_policy(principal_id: str, effect: str, resource: str):
     return {
@@ -17,10 +21,17 @@ def generate_policy(principal_id: str, effect: str, resource: str):
         }
     }
 
-def decode_token(encoded_credentials: str):
+def decode_token(authorization_header: str):
     try:
+        if authorization_header.startswith('Basic '):
+            encoded_credentials = authorization_header[6:]
+        else:
+            encoded_credentials = authorization_header
+        logger.info(f"Encoded credentials: {encoded_credentials}")
+
         decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
         username, password = decoded_credentials.split('=')
+        logger.info(f"Decoded username: {username}, password: {password}")
         return username, password
     except Exception as e:
         print(f"Error decoding token: {str(e)}")
@@ -34,6 +45,7 @@ def handler(event, context):
     
     try:
         authorization_header = event.get('authorizationToken')
+        logger.info(f"Authorization header: {authorization_header}")
         
         if not authorization_header:
             print("No authorization token present")
