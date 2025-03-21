@@ -23,64 +23,84 @@ def generate_policy(principal_id: str, effect: str, resource: str):
 
 def decode_token(authorization_header: str):
     try:
-        if authorization_header.startswith('Basic '):
-            encoded_credentials = authorization_header[6:]
-        else:
-            encoded_credentials = authorization_header
-        logger.info(f"Encoded credentials: {encoded_credentials}")
+        if not authorization_header or not authorization_header.strip():
+            logger.warning("Empty or missing authorization header")
+            return None, None
 
-        decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+        parts = authorization_header.strip().split(' ', 1)
+        
+        if len(parts) != 2 or parts[0] != 'Basic':
+            logger.warning("Invalid authorization header format")
+            return None, None
+
+        encoded_credentials = parts[1].strip()
+        
+        if not encoded_credentials:
+            logger.warning("Empty credentials")
+            return None, None
+
+        try:
+            decoded_credentials = base64.b64decode(encoded_credentials).decode('utf-8')
+            logger.info(f"Decoded credentials: '{decoded_credentials}'")
+        except (base64.binascii.Error, UnicodeDecodeError):
+            logger.warning("Invalid base64 encoding")
+            return None, None
+
+        logger.info(f"Checking format: contains space: {' ' in decoded_credentials}, "
+                   f"contains colon: {':' in decoded_credentials}, "
+                   f"equals count: {decoded_credentials.count('=')}")
+
+        if (decoded_credentials.count('=') != 1 or 
+            ' ' in decoded_credentials or 
+            ':' in decoded_credentials):
+            logger.warning("Invalid credentials format")
+            return None, None
+
         username, password = decoded_credentials.split('=')
-        logger.info(f"Decoded username: {username}, password: {password}")
-        return username, password
+
+        if not username.strip() or not password.strip():
+            logger.warning("Empty username or password")
+            return None, None
+
+        logger.info(f"Valid format, returning username: '{username.strip()}', "
+                   f"password: '{password.strip()}'")
+        return username.strip(), password.strip()
+
     except Exception as e:
-        print(f"Error decoding token: {str(e)}")
+        logger.error(f"Error decoding token: {str(e)}")
         return None, None
 
 def handler(event, context):
     """
-    Lambda handler for basic authorization
+    Lambda authorizer handler
+    Returns:
+        200 - Successfully authenticated (returns Allow policy)
+        401 - Missing/invalid authorization header format (throws "Unauthorized")
+        403 - Valid format but invalid credentials or non-existent user (returns Deny policy)
     """
-    print("Event:", json.dumps(event))
+    logger.info("Event: %s", json.dumps(event))
     
     try:
         authorization_header = event.get('authorizationToken')
-        logger.info(f"Authorization header: {authorization_header}")
-        
-        if not authorization_header:
-            print("No authorization token present")
-            return {
-                'statusCode': 401,
-                'body': json.dumps('Unauthorized: No authorization token')
-            }
+        logger.info(f"Authorization header: '{authorization_header}'")
         
         username, password = decode_token(authorization_header)
         
-        if not username or not password:
-            print("Invalid token format")
-            return {
-                'statusCode': 401,
-                'body': json.dumps('Unauthorized: Invalid token format')
-            }
-        
+        if username is None or password is None:
+            logger.info("Returning 401 - format validation failed")
+            raise Exception("Unauthorized")
+
         stored_password = os.getenv(username)
+        logger.info(f"Checking credentials for user '{username}'")
         
         if not stored_password or stored_password != password:
-            print(f"Access denied for user: {username}")
-            return {
-                'statusCode': 403,
-                'body': json.dumps('Forbidden: Invalid credentials')
-            }
+            logger.info(f"Returning 403 - invalid credentials for user '{username}'")
+            return generate_policy(username, 'Deny', event['methodArn'])
         
-        resource = event['methodArn']
-        policy = generate_policy(username, 'Allow', resource)
-        
-        print(f"Successfully authenticated user: {username}")
-        return policy
+        logger.info(f"Returning 200 - successful authentication for user '{username}'")
+        return generate_policy(username, 'Allow', event['methodArn'])
         
     except Exception as e:
-        print(f"Error in authorization: {str(e)}")
-        return {
-            'statusCode': 401,
-            'body': json.dumps(f'Unauthorized: {str(e)}')
-        }
+        logger.error(f"Authorization failed: {str(e)}")
+        raise Exception("Unauthorized")
+
