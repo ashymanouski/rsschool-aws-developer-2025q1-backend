@@ -133,6 +133,7 @@ celerybeat.pid
 
 # Environments
 .env
+authorization-service/authorization_service_cdk_stack/authorization_service_cdk_stack/ .env
 .venv
 env/
 venv/

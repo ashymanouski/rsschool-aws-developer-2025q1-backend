@@ -52,7 +52,7 @@ def handler(event, context):
             'id': product['id'],
             'title': product['title'],
             'description': product['description'],
-            'price': int(product['price']),
+            'price': float(product['price']),
             'count': int(stock['count'])
         }
             

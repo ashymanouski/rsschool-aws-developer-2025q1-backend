@@ -7,7 +7,8 @@ from aws_cdk import (
     aws_iam as iam,
     aws_sqs as sqs,
     Duration,
-    Tags
+    Tags,
+    Fn
 )
 from constructs import Construct
 from .settings import SETTINGS
@@ -16,16 +17,47 @@ class ImportServiceCdkStackStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        self.template_options.description = "Task #6: AWS SQS & SNS"
+        self.template_options.description = "Task #7: AWS Lambda Authorizer"
 
         tags = {
-            "task": "6",
+            "task": "7",
             "owner": "ashymanouski"
         }
 
         def apply_tags(resource):
             for key, value in tags.items():
                 Tags.of(resource).add(key, value)
+
+        authorizer_lambda_arn = Fn.import_value("AuthorizerLambdaArn")
+
+        authorizer_invoke_role = iam.Role(
+            self, 
+            "AuthorizerInvokeRole",
+            assumed_by=iam.ServicePrincipal("apigateway.amazonaws.com"),
+            inline_policies={
+                "InvokeLambdaAuthorizer": iam.PolicyDocument(
+                    statements=[
+                        iam.PolicyStatement(
+                            actions=["lambda:InvokeFunction"],
+                            resources=[authorizer_lambda_arn],
+                            effect=iam.Effect.ALLOW
+                        )
+                    ]
+                )
+            }
+        )
+        
+        authorizer = apigw.TokenAuthorizer(
+            self, 
+            "ImportApiAuthorizer",
+            handler=_lambda.Function.from_function_arn(
+                self, 
+                "AuthorizerFunction",
+                authorizer_lambda_arn
+            ),
+            results_cache_ttl=Duration.seconds(0),
+            assume_role=authorizer_invoke_role
+        )
 
         import_bucket = s3.Bucket.from_bucket_name(
             self, 'ImportBucket',
@@ -76,7 +108,7 @@ class ImportServiceCdkStackStack(Stack):
             description="Import Service API Gateway",
             default_cors_preflight_options=apigw.CorsOptions(
                 allow_origins=["*"],
-                allow_methods=["GET"],
+                allow_methods=["GET", "OPTIONS"],
                 allow_headers=["*"]
             )
         )
@@ -88,7 +120,9 @@ class ImportServiceCdkStackStack(Stack):
             apigw.LambdaIntegration(import_products_file),
             request_parameters={
                 "method.request.querystring.name": True
-            }
+            },
+            authorizer=authorizer,
+            authorization_type=apigw.AuthorizationType.CUSTOM
         )
 
 
